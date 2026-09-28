@@ -8,8 +8,9 @@ It supports Flatpak, RPM, AppImage, and local app launchers. Every removal requi
 
 ```bash
 git clone https://github.com/alanheverton/gnome-shell-uninstall-apps.git
+cd gnome-shell-uninstall-apps
 mkdir -p ~/.local/share/gnome-shell/extensions/uninstall-apps@alanheverton
-cp -r gnome-shell-uninstall-apps/work/uninstall-apps@alanheverton/{extension.js,appImage.js,metadata.json} \
+cp extension.js appImage.js metadata.json \
   ~/.local/share/gnome-shell/extensions/uninstall-apps@alanheverton/
 gnome-extensions enable uninstall-apps@alanheverton
 ```
