@@ -60,18 +60,19 @@ function resolveLocalAppFiles(appInfo) {
     const home = GLib.get_home_dir();
     const desktopFile = appInfo?.get_filename();
     const executable = appInfo?.get_executable();
+    const isInHome = path => path?.startsWith(`${home}/`);
 
-    const isUserDesktop = desktopFile && desktopFile.startsWith(`${home}/`);
-    const isUserExec = executable && executable.startsWith(`${home}/`);
+    const isUserDesktop = isInHome(desktopFile);
+    const isUserExec = isInHome(executable);
 
     if (!isUserDesktop && !isUserExec)
         return [];
 
     const files = new Set();
-    if (desktopFile && GLib.file_test(desktopFile, GLib.FileTest.EXISTS))
+    if (isUserDesktop && GLib.file_test(desktopFile, GLib.FileTest.EXISTS))
         files.add(desktopFile);
 
-    if (executable) {
+    if (isUserExec) {
         if (GLib.file_test(executable, GLib.FileTest.EXISTS))
             files.add(executable);
 
@@ -84,7 +85,7 @@ function resolveLocalAppFiles(appInfo) {
                     targetPath = GLib.build_filenamev([dir, rawTarget]);
                 }
                 const canonical = GLib.canonicalize_filename(targetPath, null);
-                if (canonical.startsWith(`${home}/`) && GLib.file_test(canonical, GLib.FileTest.EXISTS))
+                if (isInHome(canonical) && GLib.file_test(canonical, GLib.FileTest.EXISTS))
                     files.add(canonical);
             }
         } catch (e) {
@@ -109,6 +110,16 @@ function resolveLocalAppFiles(appInfo) {
     } catch {}
 
     return Array.from(files);
+}
+
+async function runPackageCommand(argv, description) {
+    const proc = Gio.Subprocess.new(
+        argv,
+        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+    );
+    const [, stderr] = await proc.communicate_utf8_async(null, null);
+    if (!proc.get_successful())
+        throw new Error(stderr?.trim() || `${description} terminou com código ${proc.get_exit_status()}`);
 }
 
 async function movePathToTrash(filePath) {
@@ -252,11 +263,12 @@ async function onUninstallClicked(menu) {
         if (!confirmed)
             return;
         try {
-            Gio.Subprocess.new(
+            await runPackageCommand(
                 ['flatpak', 'uninstall', '--noninteractive', flatpakId],
-                Gio.SubprocessFlags.NONE
+                'flatpak uninstall'
             );
             Main.overview.showApps();
+            Main.notify('Aplicativo removido', name);
         } catch (e) {
             logError(e, 'Erro ao desinstalar Flatpak');
             Main.notifyError('Falha ao desinstalar Flatpak', e?.message ?? String(e));
@@ -272,11 +284,12 @@ async function onUninstallClicked(menu) {
         if (!confirmed)
             return;
         try {
-            Gio.Subprocess.new(
+            await runPackageCommand(
                 ['pkcon', 'remove', '--noninteractive', rpmPackage],
-                Gio.SubprocessFlags.NONE
+                'pkcon remove'
             );
             Main.overview.showApps();
+            Main.notify('Aplicativo removido', name);
         } catch (e) {
             logError(e, 'Erro ao remover pacote RPM com pkcon');
             Main.notifyError('Falha ao desinstalar RPM', e?.message ?? String(e));
@@ -389,44 +402,6 @@ function addUninstallAction(menu, items) {
     updateUninstallItemVisibility(menu);
 }
 
-function scanAndInject(items) {
-    try {
-        const dash = Main.overview?.dash;
-        if (dash?._box) {
-            for (const item of dash._box.get_children()) {
-                const icon = item.child;
-                if (icon?._menu) {
-                    addUninstallAction(icon._menu, items);
-                    updateUninstallItemVisibility(icon._menu);
-                }
-            }
-        }
-
-        const appDisplay = Main.overview?._overview?.controls?.appDisplay;
-        if (appDisplay) {
-            const visitIcon = icon => {
-                if (!icon)
-                    return;
-                if (icon._menu) {
-                    addUninstallAction(icon._menu, items);
-                    updateUninstallItemVisibility(icon._menu);
-                }
-                if (icon._folder && icon._items) {
-                    for (const subIcon of icon._items.values())
-                        visitIcon(subIcon);
-                }
-            };
-
-            if (appDisplay._orderedItems) {
-                for (const item of appDisplay._orderedItems)
-                    visitIcon(item);
-            }
-        }
-    } catch (e) {
-        logError(e, 'Erro ao varrer ícones existentes para injeção de menu');
-    }
-}
-
 export default class UninstallAppsExtension extends Extension {
     enable() {
         this._items = new Set();
@@ -459,8 +434,6 @@ export default class UninstallAppsExtension extends Extension {
                 return result;
             }
         );
-
-        scanAndInject(items);
     }
 
     disable() {

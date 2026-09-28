@@ -2,9 +2,11 @@
 
 Extensão para GNOME Shell 50 que adiciona **Desinstalar** ao menu de contexto da grade de aplicativos.
 
-- RPM e Flatpak: abre o fluxo de remoção do GNOME Software.
+- RPM: remove pelo PackageKit (`pkcon`) e informa sucesso ou falha.
+- Flatpak: remove pela ferramenta oficial `flatpak` e informa sucesso ou falha.
 - AppImage: usa a ação `Uninstall` do lançador ou move o AppImage e seu lançador local para a lixeira.
-- A remoção continua exigindo a confirmação normal do sistema ou do gerenciador de AppImages.
+- Aplicativos locais: move para a lixeira somente arquivos dentro da pasta pessoal.
+- Toda remoção exige confirmação.
 
 ## Instalação
 

@@ -3,5 +3,5 @@
   "name": "Desinstalar aplicativos",
   "description": "Adiciona a opção Desinstalar ao menu dos aplicativos.",
   "shell-version": ["50"],
-  "version": 1
+  "version": 2
 }
